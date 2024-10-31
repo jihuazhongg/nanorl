@@ -1,0 +1,17 @@
+{
+    "alpaca_en_demo": {
+        "file_name": "alpaca_en_demo.json"
+    },
+    "c4_demo": {
+        "file_name": "c4_demo.json",
+        "columns": {
+            "prompt": "text"
+        }
+    },
+    "wiki_demo": {
+        "file_name": "wiki_demo.txt",
+        "columns": {
+          "prompt": "text"
+        }
+    }
+}
