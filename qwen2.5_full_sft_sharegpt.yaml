@@ -7,7 +7,7 @@ do_train: true
 finetuning_type: full
 
 ### dataset
-dataset: alpaca_en_demo
+dataset: glaive_toolcall_zh_demo
 template: qwen
 cutoff_len: 1024
 max_samples: 1000

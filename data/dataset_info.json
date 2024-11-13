@@ -13,5 +13,13 @@
         "columns": {
           "prompt": "text"
         }
-    }
+    },
+    "glaive_toolcall_zh_demo": {
+        "file_name": "glaive_toolcall_zh_demo.json",
+        "formatting": "sharegpt",
+        "columns": {
+          "messages": "conversations",
+          "tools": "tools"
+        }
+      }
 }

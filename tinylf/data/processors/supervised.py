@@ -64,19 +64,15 @@ def _encode_supervised_example(
     prompt: Sequence[Dict[str, str]],
     response: Sequence[Dict[str, str]],
     system: Optional[str],
-    tools: Optional[str],
-    images: Sequence["ImageInput"],
-    videos: Sequence["VideoInput"],
     template: "Template",
     tokenizer: "PreTrainedTokenizer",
-    processor: Optional["ProcessorMixin"],
     cutoff_len: int,
     train_on_prompt: bool,
     mask_history: bool,
 ) -> Tuple[List[int], List[int]]:
-    messages = template.mm_plugin.process_messages(prompt + response, images, videos, processor)
-    input_ids, labels = template.mm_plugin.process_token_ids([], [], images, videos, tokenizer, processor)
-    encoded_pairs = template.encode_multiturn(tokenizer, messages, system, tools)
+    messages = prompt + response
+    input_ids, labels = [], []
+    encoded_pairs = template.encode_multiturn(tokenizer, messages, system)
     total_length = len(input_ids) + (1 if template.efficient_eos else 0)
     if mask_history:
         encoded_pairs = encoded_pairs[::-1]  # high priority for last turns
@@ -120,15 +116,15 @@ def preprocess_supervised_dataset(
     examples: Dict[str, List[Any]],
     template: "Template",
     tokenizer: "PreTrainedTokenizer",
-    processor: Optional["ProcessorMixin"],
     data_args: "DataArguments",
 ) -> Dict[str, List[Any]]:
     # build inputs with format `<bos> X Y <eos>` and labels with format `<ignore> ... <ignore> Y <eos>`
     # for multiturn examples, we only mask the prompt part in each prompt-response pair.
     model_inputs = defaultdict(list)
-    for i in range(len(examples["_prompt"])):
+    for i in range(len(examples["_prompt"])):  # dataset.map(batched=True)
+        # TODO: 这一坨代码实际上在dataset_format阶段就可以做校验
         if len(examples["_prompt"][i]) % 2 != 1 or len(examples["_response"][i]) != 1:
-            logger.warning_rank0(
+            logger.warning(
                 "Dropped invalid example: {}".format(examples["_prompt"][i] + examples["_response"][i])
             )
             continue
@@ -137,21 +133,16 @@ def preprocess_supervised_dataset(
             prompt=examples["_prompt"][i],
             response=examples["_response"][i],
             system=examples["_system"][i],
-            tools=examples["_tools"][i],
-            images=examples["_images"][i] or [],
-            videos=examples["_videos"][i] or [],
             template=template,
             tokenizer=tokenizer,
-            processor=processor,
             cutoff_len=data_args.cutoff_len,
-            train_on_prompt=data_args.train_on_prompt,
+            train_on_prompt=data_args.train_on_prompt, # train_on_prompt作用？
             mask_history=data_args.mask_history,
         )
         model_inputs["input_ids"].append(input_ids)
+         # attention_mask 1标识对应ids有效，0标识是padding的无效ids
         model_inputs["attention_mask"].append([1] * len(input_ids))
         model_inputs["labels"].append(labels)
-        model_inputs["images"].append(examples["_images"][i])
-        model_inputs["videos"].append(examples["_videos"][i])
 
     return model_inputs
 
@@ -160,7 +151,7 @@ def preprocess_packed_supervised_dataset(
     examples: Dict[str, List[Any]],
     template: "Template",
     tokenizer: "PreTrainedTokenizer",
-    processor: Optional["ProcessorMixin"],
+    # processor: Optional["ProcessorMixin"],
     data_args: "DataArguments",
 ) -> Dict[str, List[Any]]:
     # TODO: use `position_ids` to achieve packing
@@ -186,7 +177,6 @@ def preprocess_packed_supervised_dataset(
             videos=examples["_videos"][i] or [],
             template=template,
             tokenizer=tokenizer,
-            processor=processor,
             cutoff_len=data_args.cutoff_len - 1,  # reserved for the padding token
             train_on_prompt=data_args.train_on_prompt,
             mask_history=data_args.mask_history,
@@ -238,3 +228,11 @@ def preprocess_packed_supervised_dataset(
         model_inputs["videos"].append(packed_videos or None)
 
     return model_inputs
+
+
+def print_supervised_dataset_example(example: Dict[str, List[int]], tokenizer: "PreTrainedTokenizer") -> None:
+    valid_labels = list(filter(lambda x: x != IGNORE_INDEX, example["labels"]))
+    print("input_ids:\n{}".format(example["input_ids"]))
+    print("inputs:\n{}".format(tokenizer.decode(example["input_ids"], skip_special_tokens=False)))
+    print("label_ids:\n{}".format(example["labels"]))
+    print(f"labels:\n{tokenizer.decode(valid_labels, skip_special_tokens=False)}")

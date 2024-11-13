@@ -13,7 +13,6 @@ from .data_utils import Role
 def convert_alpaca(
     example: Dict[str, Any],
     dataset_attr: "DatasetAttr",
-    data_args: "DataArguments",
 ) -> Dict[str, Any]:
     r"""
     Converts alpaca format dataset to the standard format.
@@ -49,7 +48,6 @@ def convert_alpaca(
 def convert_sharegpt(
     example: Dict[str, Any],
     dataset_attr: "DatasetAttr",
-    data_args: "DataArguments",
 ) -> Dict[str, Any]:
     r"""
     Converts sharegpt format dataset to the standard format.
@@ -59,8 +57,8 @@ def convert_sharegpt(
         dataset_attr.assistant_tag: Role.ASSISTANT.value,
         dataset_attr.system_tag: Role.SYSTEM.value,
     }
-    odd_tags = (dataset_attr.user_tag, dataset_attr.observation_tag)
-    even_tags = (dataset_attr.assistant_tag, dataset_attr.function_tag)
+    odd_tags = (dataset_attr.user_tag,)  # 暂时还用tuple
+    even_tags = (dataset_attr.assistant_tag,)
     accept_tags = (odd_tags, even_tags)
     messages = example[dataset_attr.messages]
     if (
@@ -76,33 +74,26 @@ def convert_sharegpt(
     aligned_messages = []
     broken_data = False
     for turn_idx, message in enumerate(messages):
+        if message[dataset_attr.role_tag] not in tag_mapping: # NB：先过滤掉不支持的角色
+            continue
         if message[dataset_attr.role_tag] not in accept_tags[turn_idx % 2]:
-            logger.warning_rank0(f"Invalid role tag in {messages}.")
+            logger.warning(f"Invalid role tag in {messages}.")
             broken_data = True
 
         aligned_messages.append(
             {"role": tag_mapping[message[dataset_attr.role_tag]], "content": message[dataset_attr.content_tag]}
         )
 
-    if (not dataset_attr.ranking and len(aligned_messages) % 2 != 0) or (
-        dataset_attr.ranking and len(aligned_messages) % 2 == 0
-    ):
-        logger.warning_rank0(f"Invalid message count in {messages}.")
+    if len(aligned_messages) % 2 != 0:
+        logger.warning(f"Invalid message count in {messages}.")
         broken_data = True
 
-    if dataset_attr.kto_tag and isinstance(example[dataset_attr.kto_tag], bool):  # kto example
-        prompt = aligned_messages[:-1]
-        response = aligned_messages[-1:]
-        if example[dataset_attr.kto_tag]:
-            response = response + [{"role": Role.ASSISTANT.value, "content": ""}]
-        else:
-            response = [{"role": Role.ASSISTANT.value, "content": ""}] + response
-    else:  # normal example
-        prompt = aligned_messages[:-1]
-        response = aligned_messages[-1:]
+    # normal example
+    prompt = aligned_messages[:-1] # 排除最后一个元素
+    response = aligned_messages[-1:] # 只包含最后一个元素
 
     if broken_data:
-        logger.warning_rank0("Skipping this abnormal example.")
+        logger.warning("Skipping this abnormal example.")
         prompt, response = [], []
 
     output = {
@@ -126,9 +117,9 @@ def align_dataset(
         _system: "..."
     """
     if dataset_attr.formatting == "alpaca":
-        convert_func = partial(convert_alpaca, dataset_attr=dataset_attr, data_args=data_args)
+        convert_func = partial(convert_alpaca, dataset_attr=dataset_attr)
     else:
-        convert_func = partial(convert_sharegpt, dataset_attr=dataset_attr, data_args=data_args)
+        convert_func = partial(convert_sharegpt, dataset_attr=dataset_attr)
 
     column_names = list(next(iter(dataset)).keys())
     kwargs = {}

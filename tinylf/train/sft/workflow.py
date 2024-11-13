@@ -1,13 +1,14 @@
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import torch
 import jieba  # type: ignore
 import numpy as np
 from transformers import (
+    DataCollatorForSeq2Seq,
     EvalPrediction, 
     Seq2SeqTrainingArguments, 
-    TrainerCallback,
+    Seq2SeqTrainer,
     PreTrainedTokenizer,
 )
 from rouge_chinese import Rouge
@@ -17,11 +18,9 @@ from ...utils import numpify, get_logits_processor
 from ...params import ModelArguments, DataArguments, FinetuningArguments, GeneratingArguments
 from ...model import load_tokenizer, load_model
 from ...data import (
-    SFTDataCollatorWith4DAttentionMask,
     get_dataset, 
     get_template_and_fix_tokenizer,
 )
-from .trainer import CustomSeq2SeqTrainer
 
 
 IGNORE_INDEX=-100
@@ -128,25 +127,16 @@ def run_sft(
     training_args: "Seq2SeqTrainingArguments",
     finetuning_args: "FinetuningArguments",
     generating_args: "GeneratingArguments",
-    callbacks: Optional[List["TrainerCallback"]] = None,
 ):
-    tokenizer_module = load_tokenizer(model_args)  # 就是一个包含tokenizer和processor的字典，名字叫tokenizer_module不合适吧？
-    tokenizer = tokenizer_module["tokenizer"]
-    template = get_template_and_fix_tokenizer(tokenizer, data_args) # template跟data_args绑定，是否需要跟model绑定呢？这就是预处理阶段要处理的事情
-    dataset_module = get_dataset(template, model_args, data_args, training_args, stage="sft", **tokenizer_module)
+    tokenizer = load_tokenizer(model_args)
+    template = get_template_and_fix_tokenizer(tokenizer, data_args)
+    dataset_module = get_dataset(template, model_args, data_args, training_args, stage="sft", tokenizer=tokenizer)
     model = load_model(tokenizer, model_args, finetuning_args, training_args.do_train)
 
-    if getattr(model, "is_quantized", False) and not training_args.do_train:
-        setattr(model, "_hf_peft_config_loaded", True)  # hack here: make model compatible with prediction
-
-    data_collator = SFTDataCollatorWith4DAttentionMask(
-        template=template,
+    data_collator = DataCollatorForSeq2Seq(
+        tokenizer=tokenizer,
         pad_to_multiple_of=8 if training_args.do_train else None,  # for shift short attention
         label_pad_token_id=IGNORE_INDEX if data_args.ignore_pad_token_for_loss else tokenizer.pad_token_id,
-        block_diag_attn=model_args.block_diag_attn,
-        attn_implementation=getattr(model.config, "_attn_implementation", None),
-        compute_dtype=model_args.compute_dtype,
-        **tokenizer_module,
     )
 
     # Override the decoding parameters of Seq2SeqTrainer
@@ -163,14 +153,12 @@ def run_sft(
         metric_module["preprocess_logits_for_metrics"] = eval_logit_processor
 
     # Initialize our Trainer
-    trainer = CustomSeq2SeqTrainer(
+    trainer = Seq2SeqTrainer(
         model=model,
         args=training_args,
-        finetuning_args=finetuning_args,
+        tokenizer=tokenizer,
         data_collator=data_collator,
-        callbacks=callbacks,
         **dataset_module,
-        **tokenizer_module,
         **metric_module,
     )
 

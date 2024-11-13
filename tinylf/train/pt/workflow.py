@@ -22,10 +22,9 @@ def run_pt(
     training_args: "Seq2SeqTrainingArguments",
     finetuning_args: "FinetuningArguments",
 ):
-    tokenizer_module = load_tokenizer(model_args)
-    tokenizer = tokenizer_module["tokenizer"]
+    tokenizer = load_tokenizer(model_args)
     template = get_template_and_fix_tokenizer(tokenizer, data_args) # fix tokenizer 需要再这里做嘛？
-    dataset_module = get_dataset(template, model_args, data_args, training_args, stage="pt", **tokenizer_module)
+    dataset_module = get_dataset(template, model_args, data_args, training_args, stage="pt", tokenizer=tokenizer)
     model = load_model(tokenizer, model_args, finetuning_args, training_args.do_train)
     # Data collator used for language modeling. Inputs are dynamically padded to the maximum length of a batch if they
     # are not all of the same length.

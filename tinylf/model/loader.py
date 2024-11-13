@@ -82,20 +82,7 @@ def load_tokenizer(model_args: "ModelArguments") -> "PreprocessorModule":
             model_args.resize_vocab = True
             logger.warning_rank0("New tokens have been added, changed `resize_vocab` to True.")
 
-    # patch_tokenizer(tokenizer)  # 这部分没看懂？
-    try:
-        processor = AutoProcessor.from_pretrained(model_args.model_name_or_path, **init_kwargs)
-        # patch_processor(processor, config, tokenizer, model_args) # 这部分没懂？
-    except Exception as e:
-        logger.debug(f"Processor was not found: {e}.")
-        processor = None
-
-    # Avoid load tokenizer, see:
-    # https://github.com/huggingface/transformers/blob/v4.40.0/src/transformers/models/auto/processing_auto.py#L324
-    if processor is not None and "Processor" not in processor.__class__.__name__:
-        processor = None
-
-    return {"tokenizer": tokenizer, "processor": processor}
+    return tokenizer
 
 
 def load_model(

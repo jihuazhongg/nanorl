@@ -8,7 +8,7 @@ from loguru import logger
 from datasets import Dataset, DatasetDict, IterableDataset, load_dataset
 from transformers import (
     PreTrainedTokenizer, 
-    ProcessorMixin, 
+    # ProcessorMixin, 
     Seq2SeqTrainingArguments,
 )
 
@@ -97,6 +97,7 @@ def _load_single_dataset(
         max_samples = min(data_args.max_samples, len(dataset))
         dataset = dataset.select(range(max_samples))
 
+    # dataset 格式转换
     return align_dataset(dataset, dataset_attr, data_args, training_args)
 
 
@@ -117,7 +118,7 @@ def _get_merged_dataset(
     for dataset_attr in get_dataset_list(dataset_names, data_args.dataset_dir):
         datasets.append(_load_single_dataset(dataset_attr, model_args, data_args, training_args))
 
-    return merge_dataset(datasets, data_args, seed=training_args.seed)
+    return merge_dataset(datasets, data_args, seed=training_args.seed) # 当前只支持合并
 
 
 def _get_preprocessed_dataset(
@@ -127,7 +128,6 @@ def _get_preprocessed_dataset(
     stage: Literal["pt", "sft"],
     template: "Template",
     tokenizer: "PreTrainedTokenizer",
-    processor: Optional["ProcessorMixin"] = None,
     is_eval: bool = False,
 ) -> Optional[Union["Dataset", "IterableDataset"]]:
     r"""
@@ -137,7 +137,7 @@ def _get_preprocessed_dataset(
         return None
 
     preprocess_func, print_function = get_preprocess_and_print_func( # preprocess_func, print_func
-        data_args, stage, template, tokenizer, processor, do_generate=(training_args.predict_with_generate and is_eval)
+        data_args, stage, template, tokenizer, do_generate=(training_args.predict_with_generate and is_eval)
     )
     column_names = list(next(iter(dataset)).keys())
     kwargs = {}
@@ -150,8 +150,8 @@ def _get_preprocessed_dataset(
 
     dataset = dataset.map(
         preprocess_func,
-        batched=True,
-        batch_size=data_args.preprocessing_batch_size,
+        batched=True,  # 注意看preprocess_func的实现
+        batch_size=data_args.preprocessing_batch_size, # 默认值被改成2了
         remove_columns=column_names,
         **kwargs,
     )
@@ -176,10 +176,9 @@ def get_dataset(
     training_args: "Seq2SeqTrainingArguments",
     stage: Literal["pt", "sft"],
     tokenizer: "PreTrainedTokenizer",
-    processor: Optional["ProcessorMixin"] = None,
 ) -> "DatasetModule":
     if data_args.tokenized_path is not None:
-        pass
+        pass # 暂时不考虑预先tokenize
 
     with training_args.main_process_first(desc="load dataset"):
         dataset = _get_merged_dataset(data_args.dataset, model_args, data_args, training_args, stage)
@@ -187,12 +186,12 @@ def get_dataset(
     
     with training_args.main_process_first(desc="pre-process dataset"): # 预处理datasets
         dataset = _get_preprocessed_dataset(
-            dataset, data_args, training_args, stage, template, tokenizer, processor, is_eval=False
+            dataset, data_args, training_args, stage, template, tokenizer, is_eval=False
         )
         eval_dataset = _get_preprocessed_dataset(
-            eval_dataset, data_args, training_args, stage, template, tokenizer, processor, is_eval=True
+            eval_dataset, data_args, training_args, stage, template, tokenizer, is_eval=True
         )
-
+        # 如果val-size > 1e-6则通过划分dataset得到eval_dataset
         if data_args.val_size > 1e-6:
             dataset_dict = split_dataset(dataset, data_args, seed=training_args.seed)
         else:

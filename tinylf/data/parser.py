@@ -19,7 +19,6 @@ class DatasetAttr:
     load_from: Literal["hf_hub", "script", "file"]
     dataset_name: str
     formatting: Literal["alpaca", "sharegpt"] = "alpaca" # 默认是alpaca格式的
-    ranking: bool = False   # ranking的作用是什么？
     # extra configs
     subset: Optional[str] = None
     split: str = "train"
@@ -92,7 +91,6 @@ def get_dataset_list(dataset_names: Optional[Sequence[str]], dataset_dir: str) -
             dataset_attr = DatasetAttr("file", dataset_name=dataset_info[name]["file_name"])
 
         dataset_attr.set_attr("formatting", dataset_info[name], default="alpaca")
-        dataset_attr.set_attr("ranking", dataset_info[name], default=False)
         dataset_attr.set_attr("subset", dataset_info[name])
         dataset_attr.set_attr("split", dataset_info[name], default="train")
         dataset_attr.set_attr("folder", dataset_info[name])
@@ -107,15 +105,12 @@ def get_dataset_list(dataset_names: Optional[Sequence[str]], dataset_dir: str) -
 
             for column_name in column_names:
                 dataset_attr.set_attr(column_name, dataset_info[name]["columns"])
-
         if dataset_attr.formatting == "sharegpt" and "tags" in dataset_info[name]:
             tag_names = (
                 "role_tag",
                 "content_tag",
                 "user_tag",
                 "assistant_tag",
-                "observation_tag",
-                "function_tag",
                 "system_tag",
             )
             for tag in tag_names:
