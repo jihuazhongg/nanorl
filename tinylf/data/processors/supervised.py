@@ -81,6 +81,7 @@ def _encode_supervised_example(
         if total_length >= cutoff_len:
             break
 
+        # 推算实际的source和target len
         source_len, target_len = infer_seqlen(len(source_ids), len(target_ids), cutoff_len - total_length)
         source_ids = source_ids[:source_len]
         target_ids = target_ids[:target_len]
@@ -91,7 +92,7 @@ def _encode_supervised_example(
         elif template.efficient_eos:
             source_label = [tokenizer.eos_token_id] + [IGNORE_INDEX] * (source_len - 1)
         else:
-            source_label = [IGNORE_INDEX] * source_len
+            source_label = [IGNORE_INDEX] * source_len # 忽略source_label
 
         if mask_history and turn_idx != 0:  # train on the last turn only
             target_label = [IGNORE_INDEX] * target_len
@@ -136,7 +137,7 @@ def preprocess_supervised_dataset(
             template=template,
             tokenizer=tokenizer,
             cutoff_len=data_args.cutoff_len,
-            train_on_prompt=data_args.train_on_prompt, # train_on_prompt作用？
+            train_on_prompt=data_args.train_on_prompt,
             mask_history=data_args.mask_history,
         )
         model_inputs["input_ids"].append(input_ids)

@@ -131,14 +131,13 @@ def run_sft(
 
     data_collator = DataCollatorForSeq2Seq(
         tokenizer=tokenizer,
-        pad_to_multiple_of=8 if training_args.do_train else None,  # for shift short attention
+        pad_to_multiple_of=8 if training_args.do_train else None,
         label_pad_token_id=IGNORE_INDEX if data_args.ignore_pad_token_for_loss else tokenizer.pad_token_id,
     )
 
     # Override the decoding parameters of Seq2SeqTrainer
     training_args.generation_max_length = training_args.generation_max_length or data_args.cutoff_len
     training_args.generation_num_beams = data_args.eval_num_beams or training_args.generation_num_beams
-    training_args.remove_unused_columns = False  # important for multimodal dataset
 
     # Metric utils
     metric_module = {}

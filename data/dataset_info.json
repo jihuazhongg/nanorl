@@ -21,5 +21,12 @@
           "messages": "conversations",
           "tools": "tools"
         }
-      }
+    },
+    "vicuna_conversation_demo": {
+        "file_name": "vicuna_conversation_demo.json",
+        "formatting": "sharegpt",
+        "columns": {
+            "messages": "conversations"
+        }
+    }
 }

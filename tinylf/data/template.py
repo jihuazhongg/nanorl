@@ -61,8 +61,8 @@ class Template:
     ) -> List[List[int]]:
         r"""
         Encodes formatted inputs to pairs of token ids.
-        Turn 0: prefix + system + query        resp
-        Turn t: sep + query                    resp
+        Turn 0: prefix + system + query        resp   （prefix+system+query, resp）
+        Turn t: sep + query                    resp    (sep+query, resp)
         """
         system = system or self.default_system
         encoded_messages = []
@@ -72,13 +72,13 @@ class Template:
             if i == 0:
                 elements += self.format_prefix.apply()
                 if system:
-                    elements += self.format_system.apply(content=system)
+                    elements += self.format_system.apply(content=system)  # slots=['<|im_start|>system\n{{content}}<|im_end|>\n]
 
             if i > 0 and i % 2 == 0:
                 elements += self.format_separator.apply()
 
             if message["role"] == Role.USER.value:
-                elements += self.format_user.apply(content=message["content"], idx=str(i // 2))
+                elements += self.format_user.apply(content=message["content"], idx=str(i // 2))  # 这里idx=str(i//2)不会被解析，他表示第几轮对话
             elif message["role"] == Role.ASSISTANT.value:
                 elements += self.format_assistant.apply(content=message["content"])
             else:
@@ -96,7 +96,7 @@ class Template:
         for elem in elements:
             if isinstance(elem, str):
                 if len(elem) != 0:
-                    token_ids += tokenizer.encode(elem, add_special_tokens=False)
+                    token_ids += tokenizer.encode(elem, add_special_tokens=False) # 我们已经准备好所有的special token了因此这里无需额外添加special tokens
             elif isinstance(elem, dict):
                 token_ids += [tokenizer.convert_tokens_to_ids(elem.get("token"))]
             elif isinstance(elem, set):
@@ -185,6 +185,11 @@ def _add_or_replace_eos_token(tokenizer: "PreTrainedTokenizer", eos_token: str) 
         logger.warning("New tokens have been added, make sure `resize_vocab` is True.")
 
 
+# '  => \'
+def _jinja_escape(content: str) -> str:
+    return content.replace("'", r"\'")
+
+
 def _convert_slots_to_jinja(slots: "SLOTS", tokenizer: "PreTrainedTokenizer", placeholder: str = "content") -> str:
     slot_items = []
     for slot in slots:
@@ -205,10 +210,6 @@ def _convert_slots_to_jinja(slots: "SLOTS", tokenizer: "PreTrainedTokenizer", pl
             raise ValueError("Dict is not supported.")
 
     return " + ".join(slot_items)
-
-
-def _jinja_escape(content: str) -> str:
-    return content.replace("'", r"\'")
 
 
 def _get_jinja_template(template: "Template", tokenizer: "PreTrainedTokenizer") -> str:
@@ -305,7 +306,6 @@ _register_template(
     name="qwen",
     format_user=StringFormatter(slots=["<|im_start|>user\n{{content}}<|im_end|>\n<|im_start|>assistant\n"]),
     format_system=StringFormatter(slots=["<|im_start|>system\n{{content}}<|im_end|>\n"]),
-    # format_observation=StringFormatter(slots=["<|im_start|>tool\n{{content}}<|im_end|>\n<|im_start|>assistant\n"]),
     format_separator=EmptyFormatter(slots=["\n"]),
     default_system="You are a helpful assistant.",
     stop_words=["<|im_end|>"],

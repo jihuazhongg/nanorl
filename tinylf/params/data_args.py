@@ -53,7 +53,7 @@ class DataArguments:
         metadata={"help": "Overwrite the cached training and evaluation sets."},
     )
     preprocessing_batch_size: int = field(
-        default=2,
+        default=1,
         metadata={"help": "The number of examples in one group in pre-processing."},
     )
     preprocessing_num_workers: Optional[int] = field(
