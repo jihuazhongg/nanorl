@@ -17,10 +17,7 @@ from nltk.translate.bleu_score import SmoothingFunction, sentence_bleu
 from ...utils import numpify, get_logits_processor
 from ...params import ModelArguments, DataArguments, FinetuningArguments, GeneratingArguments
 from ...model import load_tokenizer, load_model
-from ...data import (
-    get_dataset, 
-    get_template_and_fix_tokenizer,
-)
+from ...data import get_dataset
 
 
 IGNORE_INDEX=-100
@@ -129,8 +126,7 @@ def run_sft(
     generating_args: "GeneratingArguments",
 ):
     tokenizer = load_tokenizer(model_args)
-    template = get_template_and_fix_tokenizer(tokenizer, data_args)
-    dataset_module = get_dataset(template, model_args, data_args, training_args, stage="sft", tokenizer=tokenizer)
+    dataset_module = get_dataset(tokenizer, model_args, data_args, training_args, stage="sft")
     model = load_model(tokenizer, model_args, finetuning_args, training_args.do_train)
 
     data_collator = DataCollatorForSeq2Seq(

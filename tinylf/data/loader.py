@@ -7,13 +7,12 @@ import numpy as np
 from loguru import logger
 from datasets import Dataset, DatasetDict, IterableDataset, load_dataset
 from transformers import (
-    PreTrainedTokenizer, 
-    # ProcessorMixin, 
+    PreTrainedTokenizer,
     Seq2SeqTrainingArguments,
 )
 
 from ..params import DataArguments, ModelArguments
-from .template import Template
+from .template import Template, get_template_and_fix_tokenizer
 from .parser import DatasetAttr, get_dataset_list
 from .aligner import align_dataset
 from .data_utils import merge_dataset, split_dataset
@@ -170,13 +169,13 @@ def _get_preprocessed_dataset(
 
 
 def get_dataset(
-    template: "Template",
+    tokenizer: "PreTrainedTokenizer",
     model_args: "ModelArguments",
     data_args: "DataArguments",
     training_args: "Seq2SeqTrainingArguments",
     stage: Literal["pt", "sft"],
-    tokenizer: "PreTrainedTokenizer",
 ) -> "DatasetModule":
+    template = get_template_and_fix_tokenizer(tokenizer, data_args)
     if data_args.tokenized_path is not None:
         pass # 暂时不考虑预先tokenize
 

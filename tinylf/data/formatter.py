@@ -9,7 +9,6 @@ from .data_utils import SLOTS
 @dataclass
 class Formatter(ABC):
     slots: SLOTS = field(default_factory=list)
-    tool_format: Optional[str] = None
 
     @abstractmethod
     def apply(self, **kwargs) -> SLOTS:
