@@ -106,10 +106,6 @@ class ModelArguments(QuantizationArguments, ExportArguments):
         default=None,
         metadata={"help": "Which scaling strategy should be adopted for the RoPE embeddings."},
     )
-    # moe_aux_loss_coef: Optional[float] = field(
-    #     default=None,
-    #     metadata={"help": "Coefficient of the auxiliary router loss in mixture-of-experts model."},
-    # )
     disable_gradient_checkpointing: bool = field(
         default=False,
         metadata={"help": "Whether or not to disable gradient checkpointing."},
@@ -142,10 +138,6 @@ class ModelArguments(QuantizationArguments, ExportArguments):
         default="auto",
         metadata={"help": "Data type for model weights and activations at inference."},
     )
-    # hf_hub_token: Optional[str] = field(
-    #     default=None,
-    #     metadata={"help": "Auth token to log in with Hugging Face Hub."},
-    # )
     print_param_status: bool = field(
         default=False,
         metadata={"help": "For debugging purposes, print the status of the parameters in the model."},

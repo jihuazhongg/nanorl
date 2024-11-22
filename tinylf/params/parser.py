@@ -19,6 +19,8 @@ from .model_args import ModelArguments
 
 _TRAIN_ARGS = [ModelArguments, DataArguments, Seq2SeqTrainingArguments, FinetuningArguments, GeneratingArguments]
 _TRAIN_CLS = Tuple[ModelArguments, DataArguments, Seq2SeqTrainingArguments, FinetuningArguments, GeneratingArguments]
+_INFER_ARGS = [ModelArguments, DataArguments, FinetuningArguments, GeneratingArguments]
+_INFER_CLS = Tuple[ModelArguments, DataArguments, FinetuningArguments, GeneratingArguments]
 
 
 def _parse_args(parser: "HfArgumentParser", args: Optional[Dict[str, Any]] = None) -> Tuple[Any]:
@@ -39,6 +41,11 @@ def _parse_args(parser: "HfArgumentParser", args: Optional[Dict[str, Any]] = Non
         raise ValueError(f"Some specified arguments are not used by the HfArgumentParser: {unknown_args}")
 
     return (*parsed_args,)
+
+
+def _parse_infer_args(args: Optional[Dict[str, Any]] = None) -> _INFER_CLS:
+    parser = HfArgumentParser(_INFER_ARGS)
+    return _parse_args(parser, args)
 
 
 def _parse_train_args(args: Optional[Dict[str, Any]] = None) -> _TRAIN_CLS:
@@ -93,9 +100,6 @@ def get_train_args(args: Optional[Dict[str, Any]] = None) -> _TRAIN_CLS:
         if training_args.predict_with_generate:
             raise ValueError("`predict_with_generate` cannot be set as True except SFT.")
 
-        # TODO: neat packing
-
-        # TODO
         if data_args.train_on_prompt or data_args.mask_history:
             raise ValueError("`train_on_prompt` or `mask_history` cannot be set as True except SFT.")
         
@@ -182,3 +186,36 @@ def get_train_args(args: Optional[Dict[str, Any]] = None) -> _TRAIN_CLS:
     transformers.set_seed(training_args.seed)
 
     return model_args, data_args, training_args, finetuning_args, generating_args
+
+
+def get_infer_args(args: Optional[Dict[str, Any]] = None) -> _INFER_CLS:
+    model_args, data_args, finetuning_args, generating_args = _parse_infer_args(args)
+
+    _set_transformers_logging()
+
+    if data_args.template is None:
+        raise ValueError("Please specify which `template` to use.")
+
+    if model_args.infer_backend == "vllm":
+        if finetuning_args.stage != "sft":
+            raise ValueError("vLLM engine only supports auto-regressive models.")
+
+        if model_args.quantization_bit is not None:
+            raise ValueError("vLLM engine does not support bnb quantization (GPTQ and AWQ are supported).")
+
+        if model_args.rope_scaling is not None:
+            raise ValueError("vLLM engine does not support RoPE scaling.")
+
+        if model_args.adapter_name_or_path is not None and len(model_args.adapter_name_or_path) != 1:
+            raise ValueError("vLLM only accepts a single adapter. Merge them first.")
+
+    _verify_model_args(model_args, data_args, finetuning_args)
+    _check_extra_dependencies(model_args, finetuning_args)
+
+    if model_args.export_dir is not None and model_args.export_device == "cpu":
+        model_args.device_map = {"": torch.device("cpu")}
+        model_args.model_max_length = data_args.cutoff_len
+    else:
+        model_args.device_map = "auto"
+
+    return model_args, data_args, finetuning_args, generating_args
