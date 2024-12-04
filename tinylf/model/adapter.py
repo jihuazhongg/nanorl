@@ -102,8 +102,6 @@ def _setup_lora_tuning(
         else:
             target_modules = finetuning_args.lora_target
 
-        target_modules = patch_target_modules(model.config, finetuning_args, target_modules)
-
         if model_args.resize_vocab and finetuning_args.additional_target is None:
             input_embeddings = model.get_input_embeddings()
             output_embeddings = model.get_output_embeddings()
