@@ -125,7 +125,7 @@ def train(args):
     
     # prepare dataloader
     prompts_dataloader = strategy.setup_dataloader(
-        prompts_data, args.rollout_batch_size // strategy.world_size, True, True
+        prompts_dataset, args.rollout_batch_size // strategy.world_size, True, True
     )
     if args.pretrain_data:
         pretrain_dataloader = itertools.cycle(
