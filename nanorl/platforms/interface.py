@@ -21,7 +21,7 @@ class Platform:
     
     # Device APIs
     @staticmethod
-    def device_name(self, device_index=None):
+    def device_name(device_index=None):
         raise NotImplementedError
 
     @staticmethod

@@ -12,7 +12,7 @@ class NPUPlatform(Platform):
 
     # Device APIs
     @staticmethod
-    def device_name(self, device_index=None):
+    def device_name(device_index=None):
         if device_index is None:
             return "npu"
         return "npu:{}".format(device_index)

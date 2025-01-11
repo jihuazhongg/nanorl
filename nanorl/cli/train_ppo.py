@@ -38,6 +38,8 @@ def train(args):
         )
     else:
         critic = None
+
+    
     
     # not remote rm url
     # load reward model
@@ -368,7 +370,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.critic_pretrain is None:
-        args.crictic_pretrain = args.reward_pretrain
+        args.critic_pretrain = args.reward_pretrain
 
     if args.input_template and "{}" not in args.input_template:
         print("[Warning] {} not in args.input_template, set to None")
