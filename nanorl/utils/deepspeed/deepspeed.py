@@ -61,7 +61,8 @@ class DeepspeedStrategy(ABC):
         self.overlap_comm = getattr(args, "overlap_comm", False)
 
         self.is_rlhf = False
-        self.time_steps = defaultdict(int)
+        # self.time_steps = defaultdict(int) # TypeError: first argument must be callable or None
+        self.time_steps = defaultdict(lambda: 0)
 
     def set_seed(self, seed: int) -> None:
         random.seed(seed)
