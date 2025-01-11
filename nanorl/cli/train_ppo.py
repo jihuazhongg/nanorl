@@ -254,7 +254,7 @@ if __name__ == "__main__":
     parser.add_argument("--ckpt_path", type=str, default="./ckpt/checkpoints_ppo")
     parser.add_argument("--max_ckpt_num", type=int, default=3)
     parser.add_argument("--max_ckpt_mem", type=int, default=1e8)
-    parser.add_argument("--load_ckeckpoint", action="store_true", default=False)
+    parser.add_argument("--load_checkpoint", action="store_true", default=False)
 
     # PPO
     parser.add_argument("--num_episodes", type=int, default=1)
