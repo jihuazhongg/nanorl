@@ -127,7 +127,7 @@ class DeepspeedStrategy(ABC):
     ):
         # DDP only mode, replay buffers on each rank are different.
         if sampler is None:
-            num_replicas = dis.get_world_size()
+            num_replicas = dist.get_world_size()
             rank = dist.get_rank()
             sampler = DistributedSampler(
                 replay_buffer,
