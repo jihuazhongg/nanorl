@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 
+from nanorl.platforms import current_platform
 from nanorl.models.actor import Actor
 from nanorl.models.utils import compute_approx_kl, compute_reward, masked_mean
 
@@ -187,8 +188,8 @@ class NaiveExperienceMaker(ABC):
 
         # calculate return and advantages
         for experience, reward in zip(experiences, rewards):
-            experience = experience.to_device("cuda")
-            reward = reward.to(device="cuda")
+            experience = experience.to_device(current_platform.device_name())
+            reward = reward.to(device=current_platform.device_name())
             num_actions = experience.info["num_actions"]
             reward = compute_reward(
                 reward,
@@ -222,7 +223,7 @@ class NaiveExperienceMaker(ABC):
                 return_sums = reward.sum(dim=-1)
             else:
                 return_sums = torch.tensor(
-                    [each_reward.sum() for each_reward in reward], device=torch.cuda.current_device()
+                    [each_reward.sum() for each_reward in reward], device=current_platform.current_device()
                 )
             experience.info["return"] = return_sums
             # remove unnecessary info
@@ -244,7 +245,7 @@ class NaiveExperienceMaker(ABC):
         samples_list = []
         for i in range(0, len(all_prompts), args.micro_rollout_batch_size):
             prompts = all_prompts[i : i + args.micro_rollout_batch_size]
-            inputs = self.tokenize_fn(prompts, self.prompt_max_len, device="cuda")
+            inputs = self.tokenize_fn(prompts, self.prompt_max_len, device=current_platform.device_name())
             sequences, attention_mask, action_mask = self.actor.generate(**inputs, **generate_kwargs)
             samples = Samples(
                 sequences=sequences,
@@ -336,7 +337,7 @@ class NaiveExperienceMaker(ABC):
         # reward shaping for RLOO
         if args.advantage_estimator == "rloo":
             rewards = torch.cat([experience.info["reward"] for experience in experiences])
-            rewards = rewards.reshape(-1, args.n_samples_per_prompt).to(device="cuda")
+            rewards = rewards.reshape(-1, args.n_samples_per_prompt).to(device=current_platform.device_name())
             baseline = (rewards.sum(-1, keepdim=True) - rewards) / (args.n_samples_per_prompt - 1)
             rewards = rewards - baseline
             rewards = rewards.flatten().to(device="cpu").chunk(len(experiences))

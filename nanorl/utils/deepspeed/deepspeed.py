@@ -15,6 +15,7 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from deepspeed.ops.adam import DeepSpeedCPUAdam, FusedAdam
 
+from nanorl.platforms import current_platform
 from nanorl.models import Actor
 from nanorl.utils.distributed_sampler  import DistributedSampler
 
@@ -68,7 +69,7 @@ class DeepspeedStrategy(ABC):
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
-        torch.cuda.manual_seed(seed)
+        current_platform.manual_seed(seed)
 
     def setup_distributed(self, timeout=timedelta(minutes=60)) -> None:
         self.set_seed(self.seed)
@@ -77,7 +78,7 @@ class DeepspeedStrategy(ABC):
             self.args.local_rank = int(os.environ["LOCAL_RANK"])
         
         if self.args.local_rank != -1:
-            torch.cuda.set_device(self.args.local_rank)
+            current_platform.set_device(self.args.local_rank)
         # Initialize the distributed backend which will take care of synchronizing nodes/GPUs
         deepspeed.init_distributed(timeout=timeout)
         # TODO: support ring-attn
@@ -350,7 +351,7 @@ class DeepspeedStrategy(ABC):
             is_cpu_tensor = data.device.type == "cpu"
 
             if is_cpu_tensor:
-                data = data.to(torch.cuda.current_device())
+                data = data.to(current_platform.current_device())
             if op == "mean":
                 data /= self.world_size
             dist.all_reduce(data, op=dist.ReduceOp.MAX if op == "max" else dist.ReduceOp.SUM)
@@ -369,8 +370,8 @@ class DeepspeedStrategy(ABC):
                 data = torch.Tensor([data])
             is_cpu_tensor = data.device.type == "cpu"
 
-            ret = [torch.zeros_like(data).to(torch.cuda.current_device()) for _ in range(self.world_size)]
-            dist.all_gather(ret, data.to(torch.cuda.current_device()))
+            ret = [torch.zeros_like(data).to(current_platform.current_device()) for _ in range(self.world_size)]
+            dist.all_gather(ret, data.to(current_platform.current_device()))
             return torch.cat(ret).cpu() if is_cpu_tensor else torch.cat(ret)
 
     def print(self, *msg):

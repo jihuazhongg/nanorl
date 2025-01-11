@@ -9,6 +9,7 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from nanorl.platforms import current_platform
 from nanorl.models import Actor, GPTLMLoss, PolicyLoss, ValueLoss
 from nanorl.models.utils import masked_mean
 from nanorl.utils.distributed_sampler import DistributedSampler
@@ -212,11 +213,11 @@ class PPOTrainer(ABC):
                         self.strategy.print(output)
                     self.replay_buffer.append(experience)
 
-                torch.cuda.empty_cache()
+                current_platform.empty_cache()
                 self.replay_buffer.normalize("advantages", self.strategy)
                 status = self.ppo_train(steps)
                 self.replay_buffer.clear()
-                torch.cuda.empty_cache()
+                current_platform.empty_cache()
 
                 if "kl" in status:
                     self.kl_ctl.update(status["kl"], args.rollout_batch_size * args.n_samples_per_prompt)
@@ -242,7 +243,7 @@ class PPOTrainer(ABC):
             pin_memory=self.dataloader_pin_memory,
             collate_fn=self.replay_buffer.collate_fn,
         )
-        device = torch.cuda.current_device()
+        device = current_platform.current_device()
 
         status_list = []
         status_mean = {}
@@ -349,8 +350,8 @@ class PPOTrainer(ABC):
         # ptx loss
         if self.pretrain_dataloader is not None:
             data = next(self.pretrain_dataloader)
-            inputs = data[1].squeeze(1).to(torch.cuda.current_device())
-            attention_mask = data[2].squeeze(1).to(torch.cuda.current_device())
+            inputs = data[1].squeeze(1).to(current_platform.current_device())
+            attention_mask = data[2].squeeze(1).to(current_platform.current_device())
             label = torch.where(
                 attention_mask.bool(),
                 inputs,
