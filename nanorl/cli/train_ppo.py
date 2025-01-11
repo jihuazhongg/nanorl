@@ -23,7 +23,7 @@ def train(args):
     actor = Actor(
         args.pretrain,
         bf16=args.bf16,
-        sd_config=strategy.get_train_ds_config(is_actor=True),
+        sd_config=strategy.get_ds_train_config(is_actor=True),
     )
 
     if args.critic_pretrain:
@@ -44,7 +44,7 @@ def train(args):
     reward_model = get_llm_for_sequence_regression(
         args.reward_pretrain,
         "reward",
-        normalized_reward=args.normalize_reward,
+        normalize_reward=args.normalize_reward,
         bf16=args.bf16,
         ds_config=strategy.get_ds_train_config(is_actor=False),
         value_head_prefix=args.value_head_prefix,
@@ -64,7 +64,7 @@ def train(args):
     initial_model = Actor(
         args.pretrain,
         bf16=args.bf16,
-        sd_config=strategy.get_ds_eval_config(is_actor=False),
+        sd_config=strategy.get_ds_eval_config(offload=False),
     )
 
     # ema_model = None
