@@ -351,7 +351,7 @@ class DeepspeedStrategy(ABC):
             is_cpu_tensor = data.device.type == "cpu"
 
             if is_cpu_tensor:
-                data = data.to(current_platform.current_device())
+                data = data.to(current_platform.current_device_name())
             if op == "mean":
                 data /= self.world_size
             dist.all_reduce(data, op=dist.ReduceOp.MAX if op == "max" else dist.ReduceOp.SUM)
@@ -370,8 +370,8 @@ class DeepspeedStrategy(ABC):
                 data = torch.Tensor([data])
             is_cpu_tensor = data.device.type == "cpu"
 
-            ret = [torch.zeros_like(data).to(current_platform.current_device()) for _ in range(self.world_size)]
-            dist.all_gather(ret, data.to(current_platform.current_device()))
+            ret = [torch.zeros_like(data).to(current_platform.current_device_name()) for _ in range(self.world_size)]
+            dist.all_gather(ret, data.to(current_platform.current_device_name()))
             return torch.cat(ret).cpu() if is_cpu_tensor else torch.cat(ret)
 
     def print(self, *msg):
