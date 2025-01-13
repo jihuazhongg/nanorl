@@ -39,8 +39,6 @@ def train(args):
     else:
         critic = None
 
-    
-    
     # not remote rm url
     # load reward model
     reward_model = get_llm_for_sequence_regression(
