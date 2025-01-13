@@ -23,7 +23,7 @@ class NPUPlatform(Platform):
 
     @staticmethod
     def current_device():
-        return torch.npu.current_device()
+        return "npu:{}".format(torch.npu.current_device())
     
     @staticmethod
     def device_count() -> int:
