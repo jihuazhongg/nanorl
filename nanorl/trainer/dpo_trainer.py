@@ -67,9 +67,6 @@ class DPOTrainer(ABC):
         # NLL loss
         self.nll_loss = self.args.nll_loss_coef > 1e-8
 
-        # packing samples
-        self.packing_samples = strategy.args.packing_samples
-
         # wandb/tensorboard setting
         self._wandb = None
         if self.strategy.args.use_wandb and self.strategy.is_rank_0():
@@ -127,32 +124,19 @@ class DPOTrainer(ABC):
             self.ref_model.eval()
             # train
             for data in self.train_dataloader:
-                if not self.packing_samples:
-                    chosen_ids, c_mask, reject_ids, r_mask, prompt_id_lens = data
-                    chosen_ids = chosen_ids.squeeze(1).to(current_platform.current_device())
-                    c_mask = c_mask.squeeze(1).to(current_platform.current_device())
-                    reject_ids = reject_ids.squeeze(1).to(current_platform.current_device())
-                    r_mask = r_mask.squeeze(1).to(current_platform.current_device())
+                chosen_ids, c_mask, reject_ids, r_mask, prompt_id_lens = data
+                chosen_ids = chosen_ids.squeeze(1).to(current_platform.current_device())
+                c_mask = c_mask.squeeze(1).to(current_platform.current_device())
+                reject_ids = reject_ids.squeeze(1).to(current_platform.current_device())
+                r_mask = r_mask.squeeze(1).to(current_platform.current_device())
 
-                    chosen_logps, rejected_logps, aux_loss, nll_loss = self.concatenated_forward(
-                        self.model, chosen_ids, c_mask, reject_ids, r_mask, prompt_id_lens
+                chosen_logps, rejected_logps, aux_loss, nll_loss = self.concatenated_forward(
+                    self.model, chosen_ids, c_mask, reject_ids, r_mask, prompt_id_lens
+                )
+                with torch.no_grad():
+                    reference_chosen_logps, reference_rejected_logps, _, _ = self.concatenated_forward(
+                        self.ref_model, chosen_ids, c_mask, reject_ids, r_mask, prompt_id_lens
                     )
-                    with torch.no_grad():
-                        reference_chosen_logps, reference_rejected_logps, _, _ = self.concatenated_forward(
-                            self.ref_model, chosen_ids, c_mask, reject_ids, r_mask, prompt_id_lens
-                        )
-                else:
-                    packed_input_ids, packed_attention_masks, packed_seq_lens, prompt_id_lens = data
-                    packed_input_ids, packed_attention_masks = packed_input_ids.to(
-                        current_platform.current_device()
-                    ), packed_attention_masks.to(current_platform.current_device())
-                    chosen_logps, rejected_logps, aux_loss, nll_loss = self.packed_samples_forward(
-                        self.model, packed_input_ids, packed_attention_masks, packed_seq_lens, prompt_id_lens
-                    )
-                    with torch.no_grad():
-                        reference_chosen_logps, reference_rejected_logps, _, _ = self.packed_samples_forward(
-                            self.ref_model, packed_input_ids, packed_attention_masks, packed_seq_lens, prompt_id_lens
-                        )
 
                 # loss function
                 preference_loss, chosen_reward, reject_reward = self.loss_fn(
@@ -241,32 +225,19 @@ class DPOTrainer(ABC):
             loss_sum = 0
             times = 0
             for data in eval_dataloader:
-                if not self.packing_samples:
-                    chosen_ids, c_mask, reject_ids, r_mask, prompt_id_lens = data
-                    chosen_ids = chosen_ids.squeeze(1).to(current_platform.current_device())
-                    c_mask = c_mask.squeeze(1).to(current_platform.current_device())
-                    reject_ids = reject_ids.squeeze(1).to(current_platform.current_device())
-                    r_mask = r_mask.squeeze(1).to(current_platform.current_device())
+                chosen_ids, c_mask, reject_ids, r_mask, prompt_id_lens = data
+                chosen_ids = chosen_ids.squeeze(1).to(current_platform.current_device())
+                c_mask = c_mask.squeeze(1).to(current_platform.current_device())
+                reject_ids = reject_ids.squeeze(1).to(current_platform.current_device())
+                r_mask = r_mask.squeeze(1).to(current_platform.current_device())
 
-                    chosen_logps, rejected_logps, aux_loss, _ = self.concatenated_forward(
-                        self.model, chosen_ids, c_mask, reject_ids, r_mask, prompt_id_lens
+                chosen_logps, rejected_logps, aux_loss, _ = self.concatenated_forward(
+                    self.model, chosen_ids, c_mask, reject_ids, r_mask, prompt_id_lens
+                )
+                with torch.no_grad():
+                    reference_chosen_logps, reference_rejected_logps, _, _ = self.concatenated_forward(
+                        self.ref_model, chosen_ids, c_mask, reject_ids, r_mask, prompt_id_lens
                     )
-                    with torch.no_grad():
-                        reference_chosen_logps, reference_rejected_logps, _, _ = self.concatenated_forward(
-                            self.ref_model, chosen_ids, c_mask, reject_ids, r_mask, prompt_id_lens
-                        )
-                else:
-                    packed_input_ids, packed_attention_masks, packed_seq_lens, prompt_id_lens = data
-                    packed_input_ids, packed_attention_masks = packed_input_ids.to(
-                        current_platform.current_device()
-                    ), packed_attention_masks.to(current_platform.current_device())
-                    chosen_logps, rejected_logps, aux_loss, _ = self.packed_samples_forward(
-                        self.model, packed_input_ids, packed_attention_masks, packed_seq_lens, prompt_id_lens
-                    )
-                    with torch.no_grad():
-                        reference_chosen_logps, reference_rejected_logps, _, _ = self.packed_samples_forward(
-                            self.ref_model, packed_input_ids, packed_attention_masks, packed_seq_lens, prompt_id_lens
-                        )
 
                 loss, chosen_reward, reject_reward = self.loss_fn(
                     chosen_logps, rejected_logps, reference_chosen_logps, reference_rejected_logps
