@@ -23,7 +23,7 @@ def train(args):
     actor = Actor(
         args.pretrain,
         bf16=args.bf16,
-        sd_config=strategy.get_ds_train_config(is_actor=True),
+        ds_config=strategy.get_ds_train_config(is_actor=True),
     )
 
     if args.critic_pretrain:
@@ -66,7 +66,7 @@ def train(args):
     initial_model = Actor(
         args.pretrain,
         bf16=args.bf16,
-        sd_config=strategy.get_ds_eval_config(offload=False),
+        ds_config=strategy.get_ds_eval_config(offload=False),
     )
 
     # ema_model = None
@@ -264,7 +264,7 @@ if __name__ == "__main__":
     parser.add_argument("--micro_rollout_batch_size", type=int, default=8)
     parser.add_argument("--max_epochs", type=int, default=1)
     parser.add_argument("--prompt_max_len", type=int, default=1024, help="Max tokens for each prompt")
-    parser.add_argument("--generate_max_len", type=int, default=1024, help="Max tokens for generate in PPO")
+    parser.add_argument("--generate_max_len", type=int, default=1024, help="Max tokens to generate in PPO")
     parser.add_argument("--max_len", type=int, default=None, help="deprecated max_len")
     parser.add_argument("--max_samples", type=int, default=1000000)
     parser.add_argument("--max_norm", type=float, default=1.0, help="Gradient clipping")
