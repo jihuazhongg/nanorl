@@ -30,7 +30,7 @@ def train(args):
         critic = get_llm_for_sequence_regression(
             args.critic_pretrain,
             "critic",
-            normailize_reward=args.normalize_reward,
+            normalize_reward=args.normalize_reward,
             bf16=args.bf16,
             ds_config=strategy.get_ds_train_config(is_actor=False),
             value_head_prefix=args.value_head_prefix,
